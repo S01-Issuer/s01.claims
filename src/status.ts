@@ -78,29 +78,67 @@ export async function simulateClaim(client: ReadClient, a: {
   }
 }
 
-/** A readable revert reason: `Error(string)` text, or `Name(args)` for a RaindexV7 custom error. */
+/**
+ * A readable revert reason: `Error(string)` text, or `Name(args)` for a RaindexV7 custom error.
+ *
+ * Errors are recognised by shape, not `instanceof`: the client that threw may come from another copy of viem than
+ * this library's (a linked or duplicated dependency), and an `instanceof` check would then miss every reason.
+ */
 export function revertReason(e: unknown): string {
-  if (e instanceof BaseError) {
-    const reverted = e.walk((x) => x instanceof ContractFunctionRevertedError);
-    if (reverted instanceof ContractFunctionRevertedError && reverted.reason) return reverted.reason;
-    const data = findRevertData(e);
-    if (data !== undefined) {
-      try {
-        const d = decodeErrorResult({ abi: raindexV7ClaimAbi, data });
-        const args = (d.args ?? []) as readonly unknown[];
-        if ((d.errorName as string) === "Error") return String(args[0]);
-        return `${d.errorName}(${args.map(String).join(", ")})`;
-      } catch { return `revert ${data}`; }
-    }
-    return e.shortMessage;
+  if (isViemError(e)) {
+    const reverted = e.walk((x) => x instanceof ContractFunctionRevertedError || (x as Error | undefined)?.name === "ContractFunctionRevertedError");
+    const reason = (reverted as { reason?: unknown } | null)?.reason;
+    if (typeof reason === "string" && reason) return reason;
+    const data = findRevertData(e) ?? revertDataFromText(errorText(e));
+    if (data !== undefined) return decodeRevertData(data);
+    // No data anywhere (some nodes and proxies only send text): the node's own words, e.g. "execution reverted: Claimed".
+    return reasonFromText(errorText(e)) ?? e.shortMessage;
   }
-  return e instanceof Error ? e.message : String(e);
+  if (e instanceof Error) return reasonFromText(e.message) ?? e.message;
+  return String(e);
+}
+
+/** `Error(string)` text, `Name(args)` for a RaindexV7 custom error, else `revert 0x…`. */
+function decodeRevertData(data: Hex): string {
+  try {
+    const d = decodeErrorResult({ abi: raindexV7ClaimAbi, data });
+    const args = (d.args ?? []) as readonly unknown[];
+    if ((d.errorName as string) === "Error") return String(args[0]);
+    return `${d.errorName}(${args.map(String).join(", ")})`;
+  } catch { return `revert ${data}`; }
+}
+
+/** Every message and details string along the cause chain. */
+function errorText(e: BaseError): string {
+  const parts: string[] = [];
+  e.walk((x) => {
+    const o = x as { shortMessage?: unknown; details?: unknown; message?: unknown } | undefined;
+    for (const v of [o?.shortMessage, o?.details, o?.message]) if (typeof v === "string") parts.push(v);
+    return false;
+  });
+  return parts.join("\n");
+}
+
+/** Anvil/geth text for a custom error: "custom error 0x573b6f41: ffffffee…" (args hex, no 0x) or "custom error 0x573b6f41". */
+function revertDataFromText(text: string): Hex | undefined {
+  const m = /custom error (0x[0-9a-fA-F]{8})(?::\s*(?:0x)?([0-9a-fA-F]*))?/.exec(text);
+  return m ? (`${m[1]}${m[2] ?? ""}` as Hex) : undefined;
+}
+
+/** "execution reverted: Claimed" / "reverted with reason: Claimed." → "Claimed". */
+function reasonFromText(text: string): string | undefined {
+  const m = /(?:execution reverted|reverted with reason):\s*([^\n]+?)\.?\s*$/m.exec(text);
+  return m?.[1] && !/^custom error/.test(m[1]) ? m[1] : undefined;
+}
+
+function isViemError(e: unknown): e is BaseError {
+  return e instanceof BaseError || (e instanceof Error && typeof (e as { walk?: unknown }).walk === "function" && typeof (e as { shortMessage?: unknown }).shortMessage === "string");
 }
 
 function findRevertData(e: BaseError): Hex | undefined {
   let found: Hex | undefined;
   e.walk((x) => {
-    const d = (x as { data?: unknown }).data;
+    const d = (x as { data?: unknown } | undefined)?.data;
     if (typeof d === "string" && /^0x[0-9a-fA-F]{8,}$/.test(d)) { found = d as Hex; return true; }
     if (d && typeof d === "object" && typeof (d as { data?: unknown }).data === "string") { found = (d as { data: Hex }).data; return true; }
     return false;

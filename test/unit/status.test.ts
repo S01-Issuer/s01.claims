@@ -61,4 +61,32 @@ describe("simulateClaim", () => {
   });
   it("revertReason falls back to the short message", () => expect(revertReason(new BaseError("boom"))).toBe("boom"));
   it("revertReason decodes Error(string)", () => expect(revertReason(revert(errorString("Proof")))).toBe("Proof"));
+  // Regression (e2e run on Anvil): simulateClaim said claimed:false for a claimed leaf. These are the error chains a node
+  // gives when the revert data is not on the error, only in its text.
+  const textOnly = (details: string) => new CallExecutionError(new BaseError(`Execution reverted with reason: ${details.replace(/^execution reverted: /, "")}.`, { details }), { account: undefined as never });
+  const minIOText = `execution reverted: custom error 0x573b6f41: ${minIO.slice(10)}`;
+  it("revertReason reads Error(string) from the node's text when there is no revert data", () => {
+    expect(revertReason(textOnly("execution reverted: Claimed"))).toBe("Claimed");
+    expect(revertReason(new Error("Execution reverted with reason: Proof."))).toBe("Proof");
+  });
+  it("revertReason decodes a custom error from the node's text when there is no revert data", () => {
+    expect(revertReason(textOnly(minIOText))).toBe(revertReason(revert(minIO)));
+    expect(revertReason(textOnly(minIOText))).toMatch(/^MinimumIO\(0x/);
+  });
+  it("simulateClaim flags claimed when both reverts carry text only", async () => {
+    const r = await simulateClaim(stub(() => { throw textOnly(minIOText); }, () => { throw textOnly("execution reverted: Claimed"); }), args);
+    expect(r).toMatchObject({ ok: false, claimed: true, orderMissing: false });
+    expect(r.ok === false && /^MinimumIO\(0x.*\): Claimed$/.test(r.reason)).toBe(true);
+  });
+  it("revertReason reads errors thrown by another copy of viem (no instanceof)", () => {
+    // What a duplicated viem throws: same shape (walk, shortMessage, cause chain), different classes.
+    class ForeignError extends Error {
+      constructor(public shortMessage: string, public override cause?: unknown, public data?: Hex) { super(`${shortMessage}\n\nRaw Call Arguments: …`); }
+      walk(fn: (e: unknown) => boolean): unknown { let e: unknown = this; while (e) { if (fn(e)) return e; e = (e as { cause?: unknown }).cause; } return null; }
+    }
+    const withData = new ForeignError("Execution reverted", new ForeignError("raw", undefined, errorString("Claimed")));
+    expect(revertReason(withData)).toBe("Claimed");
+    const decoded = Object.assign(new ForeignError("reverted"), { name: "ContractFunctionRevertedError", reason: "Proof" });
+    expect(revertReason(new ForeignError("Execution reverted", decoded))).toBe("Proof");
+  });
 });
