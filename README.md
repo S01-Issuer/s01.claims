@@ -10,8 +10,10 @@ builder and claimants share one implementation.
 
 ## Install
 
+Not on npm yet. Install from GitHub:
+
 ```bash
-npm install @s01/claims viem
+npm install github:S01-Issuer/s01.claims viem
 ```
 
 ## Claim one leaf
@@ -23,7 +25,7 @@ import { ethereum, isClaimed, prepareClaim, simulateClaim } from "@s01/claims";
 import { fetchWalletClaims, toClaimProof } from "@s01/claims/api";
 
 const publicClient = createPublicClient({ chain: mainnet, transport: http() });
-const [fill] = await fetchWalletClaims(wallet, { baseUrl: "https://salt.s01issuer.com" });   // optional helper
+const [fill] = await fetchWalletClaims(wallet, { baseUrl: "https://tsalt-api.s01issuer.com" });   // optional helper
 const decimals = fill.token === "USDC" ? 6 : 18;
 
 const claim = await prepareClaim({
