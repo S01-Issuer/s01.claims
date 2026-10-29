@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 import {
   createPublicClient, createWalletClient, custom, defineChain, erc20Abi, http,
   type Address, type Chain, type EIP1193Provider, type PublicClient, type WalletClient,

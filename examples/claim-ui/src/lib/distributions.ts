@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 /** The distributions dashboard: every claim order on the orderbook, from AddOrderV3 / TakeOrderV4 / DepositV2 logs. */
 import { parseAbiItem, type Address, type Hex, type PublicClient } from "viem";
 import {

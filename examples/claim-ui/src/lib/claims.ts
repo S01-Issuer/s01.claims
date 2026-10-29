@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 /**
  * THE CLAIM PATH: everything this UI does with @s01/claims for one investor, top to bottom. A production UI needs the
  * same four steps: get the claim (API), check it (proof, status, preflight), send it, re-check.

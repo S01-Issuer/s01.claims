@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 import type { Address, Hex } from "viem";
 import { ClaimsError } from "./errors.js";
 import type { LeafHashing } from "./leaf.js";

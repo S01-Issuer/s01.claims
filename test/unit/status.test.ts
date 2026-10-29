@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 import { describe, it, expect } from "vitest";
 import { BaseError, CallExecutionError, concat, encodeAbiParameters, encodeErrorResult, encodeFunctionResult, keccak256, pad, RawContractError, type Hex } from "viem";
 import {

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 /**
  * Optional typed client for the tSALT API's claim fields (`GET /v1/wallets/{address}/purchases` and `/redemptions`,
  * tsalt.api SPEC §5.4–5.5). Separate entry point (`@s01/claims/api`): the core never depends on it.

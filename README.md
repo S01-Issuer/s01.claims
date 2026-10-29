@@ -114,6 +114,6 @@ npm run build     # dist/ ESM + .d.ts
 The end-to-end check against a mainnet fork (deploy an order, claim, replay refused, `isClaimed`) runs in
 `s01.distributions`: `verify-claim --fork`.
 
-## License
+## Licence
 
-TBD (see LICENSE).
+[DecentraLicense 1.0](LICENSE) (`LicenseRef-DCL-1.0`), the licence Rain uses for Raindex and its tooling.

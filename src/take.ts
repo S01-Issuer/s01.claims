@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 import { encodeFunctionData, type Hex } from "viem";
 import { raindexV7ClaimAbi } from "./abi.js";
 import type { SignedContext } from "./context.js";

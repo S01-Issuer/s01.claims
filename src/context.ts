@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 import { domainSeparator, type Address, type Hex, type TypedDataDomain } from "viem";
 import { generatePrivateKey, privateKeyToAccount, type LocalAccount } from "viem/accounts";
 import { parseAmount, toLeafAmount18 } from "./amounts.js";

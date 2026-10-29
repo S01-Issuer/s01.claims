@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 /**
  * Drive the UI's claim path (src/lib/claims.ts: loadWalletClaims → checkClaim → sendClaim) from Node, against a
  * local.json: claims every claimable leaf of one investor, then tries once more and expects the "Claimed" reason.

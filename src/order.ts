@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 import { decodeAbiParameters, encodeAbiParameters, keccak256, type AbiParameterToPrimitiveType, type Hex } from "viem";
 import { orderV4Param } from "./abi.js";
 import { ClaimsError } from "./errors.js";

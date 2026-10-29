@@ -2,7 +2,7 @@
   "name": "@s01/claims",
   "version": "0.1.0",
   "description": "Claim a pull-based ERC-20 distribution from a Raindex claims.rain Merkle order: leaf encoding, proof checks, signed context, take-orders calldata and claim status. Browser-safe; viem is the only dependency.",
-  "license": "UNLICENSED",
+  "license": "LicenseRef-DCL-1.0",
   "type": "module",
   "sideEffects": false,
   "engines": {

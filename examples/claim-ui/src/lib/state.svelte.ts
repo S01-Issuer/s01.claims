@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 import type { Chain, PublicClient } from "viem";
 import { forkBlock, localChain, publicClientFor } from "./chain";
 import { leafHashingOf, orderbookOf, type Loaded } from "./config";

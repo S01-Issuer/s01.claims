@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 import type { Address, Hex, TypedDataDomain } from "viem";
 import { buildClaimContext, randomSigner, signClaimContext, type ClaimProof, type ContextSigner, type SignedContext } from "./context.js";
 import { ClaimsError } from "./errors.js";

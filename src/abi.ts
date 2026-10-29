@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 /**
  * RaindexV7 fragments (as const), from rainlanguage/raindex `raindex-interface` 0.1.13 `src/interface/IRaindexV7.sol`
  * and rainlang 0.2.30 `IInterpreterCallerV5.sol` / `IInterpreterStoreV3.sol` (raindex sol-v0.1.16/0.1.17, deployed on

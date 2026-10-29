@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: LicenseRef-DCL-1.0
+// SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 export { ClaimsError, type ClaimsErrorCode } from "./errors.js";
 export { assertDecimals, formatAmount, parseAmount, toLeafAmount18 } from "./amounts.js";
 export { floatHex, floatToFixed, packFloat, unpackFloat, ZERO_FLOAT, type Float } from "./float.js";
