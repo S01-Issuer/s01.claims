@@ -46,6 +46,12 @@ Rules a UI must keep:
 - **The claimant pays nothing.** The order's IO ratio is 0 and the take sets `maximumIORatio` to 0, so no approval is
   needed.
 
+## Example: local claim UI
+
+[`examples/claim-ui`](examples/claim-ui) is a Vite + Svelte page for practising claims on a local Anvil (the e2e
+harness, or its own `npm run demo` fork), and the reference integration for a claimant UI: the claim path is
+[`examples/claim-ui/src/lib/claims.ts`](examples/claim-ui/src/lib/claims.ts). `cd examples/claim-ui && npm install && npm run dev`.
+
 ## The leaf encoding (frozen)
 
 ```

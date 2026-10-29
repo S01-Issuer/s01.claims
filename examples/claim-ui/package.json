@@ -1,0 +1,30 @@
+{
+  "name": "@s01/claim-ui-example",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Local practice UI for tSALT claims against an Anvil chain: a reference integration of @s01/claims.",
+  "type": "module",
+  "scripts": {
+    "lib": "npm --prefix ../.. run build",
+    "dev": "npm run lib && vite",
+    "build": "npm run lib && vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.node.json",
+    "demo": "npm run lib && tsx scripts/local-demo.ts",
+    "dev:demo": "npm run lib && CLAIM_UI_LOCAL=.demo/local.json vite",
+    "verify": "tsx scripts/verify-claim-path.ts"
+  },
+  "dependencies": {
+    "@s01/claims": "file:../..",
+    "viem": "2.57.7"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@tsconfig/svelte": "5.0.8",
+    "@types/node": "24.19.2",
+    "svelte": "5.57.3",
+    "svelte-check": "4.7.7",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vite": "8.3.5"
+  }
+}
