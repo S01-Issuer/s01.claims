@@ -1,0 +1,46 @@
+{
+  "name": "@s01/claims",
+  "version": "0.1.0",
+  "description": "Claim a pull-based ERC-20 distribution from a Raindex claims.rain Merkle order: leaf encoding, proof checks, signed context, take-orders calldata and claim status. Browser-safe; viem is the only dependency.",
+  "license": "UNLICENSED",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./api": {
+      "types": "./dist/api.d.ts",
+      "import": "./dist/api.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepare": "npm run build"
+  },
+  "peerDependencies": {
+    "viem": "^2.57.0"
+  },
+  "devDependencies": {
+    "@openzeppelin/merkle-tree": "1.0.8",
+    "@rainlanguage/float": "0.0.0-alpha.40",
+    "@types/node": "24.19.2",
+    "typescript": "5.9.3",
+    "viem": "2.57.7",
+    "vitest": "5.0.5"
+  }
+}
