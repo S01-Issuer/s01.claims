@@ -5,8 +5,8 @@ needs and nothing operator-side: the frozen leaf encoding, local proof checks, t
 `takeOrders5` calldata, claim status and a preflight. Browser-safe (no Node built-ins), and [viem](https://viem.sh) is
 the only dependency (a peer).
 
-Operators build and deploy the orders with `s01.distributions`, which imports the leaf encoding from here, so tree
-builder and claimants share one implementation.
+Operators build and deploy the orders with `s01.distributions`. Its `raindex-v7` branch imports the leaf encoding from
+here, so tree builder and claimants share one implementation; its `main` branch still has its own copy.
 
 ## Install
 
@@ -46,8 +46,9 @@ Rules a UI must keep:
 - **Any key can sign the context.** The order checks neither signer nor EIP-712 domain; `prepareClaim` uses a fresh
   random key unless you pass `signer`.
 - **`simulateClaim` is the proof check.** It runs the proof against the order's on-chain root, so a wrong proof comes
-  back as `pre.ok === false` with a reason ending in `: Proof` (`MinimumIO(…): Proof`), and the example stops there. The tSALT API does not serve the root, so
-  use `prepareClaim`'s `verify` option only if you hold the root from another source.
+  back as `pre.ok === false` with a reason ending in `: Proof` (`MinimumIO(…): Proof`), and the example stops there.
+  The tSALT API does not serve the root, so use `prepareClaim`'s `verify` option only if you hold the root from another
+  source.
 - **The claimant pays nothing.** The order's IO ratio is 0 and the take sets `maximumIORatio` to 0, so no approval is
   needed.
 
@@ -114,8 +115,8 @@ npm test          # unit tests, no network
 npm run build     # dist/ ESM + .d.ts
 ```
 
-The end-to-end check against a mainnet fork (deploy an order, claim, replay refused, `isClaimed`) runs in
-`s01.distributions`: `verify-claim --fork`.
+To run the claim path end to end on a mainnet fork (claim, replay refused, `isClaimed`), use `npm run verify` in
+[`examples/claim-ui`](examples/claim-ui) against a local chain with deployed orders.
 
 ## Licence
 

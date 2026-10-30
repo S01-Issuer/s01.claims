@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-DCL-1.0
 // SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 import { describe, it, expect } from "vitest";
-import { BaseError, CallExecutionError, concat, encodeAbiParameters, encodeErrorResult, encodeFunctionResult, keccak256, pad, RawContractError, type Hex } from "viem";
+import { BaseError, CallExecutionError, HttpRequestError, concat, encodeAbiParameters, encodeErrorResult, encodeFunctionResult, keccak256, pad, RawContractError, type Hex } from "viem";
 import {
   CLAIMED_KEY_WORD, claimedStoreKey, isClaimed, orderHash, orderNamespace, raindexV7ClaimAbi, revertReason, simulateClaim, type ReadClient,
 } from "../../src/index.js";
@@ -47,7 +47,23 @@ describe("simulateClaim", () => {
     }) as never,
   });
   const args = { raindex: RAINDEX, wallet: WALLET, order: ORDER, signedContext: [], amount: `0x${"00".repeat(32)}` as Hex };
-  it("ok when the take does not revert", async () => expect(await simulateClaim(stub(() => "0x", () => "0x"), args)).toEqual({ ok: true }));
+  const twoWords = `0x${"00".repeat(64)}` as Hex;
+  it("ok when the take does not revert", async () => expect(await simulateClaim(stub(() => twoWords, () => "0x"), args)).toEqual({ ok: true }));
+  it("is not ok when nothing answers at raindex", async () => {
+    const empty: ReadClient = { readContract: (async () => { throw new Error("unused"); }) as never, call: (async () => ({ data: undefined })) as never };
+    expect(await simulateClaim(empty, args)).toMatchObject({ ok: false, claimed: false, orderMissing: false });
+  });
+  it("lets an RPC failure propagate, from the take and from the quote", async () => {
+    const down = () => { throw new HttpRequestError({ url: "http://node", status: 503, details: "unavailable" }); };
+    await expect(simulateClaim(stub(down, () => "0x"), args)).rejects.toBeInstanceOf(HttpRequestError);
+    await expect(simulateClaim(stub(() => { throw revert(minIO); }, down), args)).rejects.toBeInstanceOf(HttpRequestError);
+  });
+  it("names an underfunded vault: MinimumIO, and the quote says the order is live", async () => {
+    const live = encodeFunctionResult({ abi: raindexV7ClaimAbi, functionName: "quote3", result: [true, `0x${"00".repeat(32)}`, `0x${"00".repeat(32)}`] });
+    const r = await simulateClaim(stub(() => { throw revert(minIO); }, () => live), args);
+    expect(r).toMatchObject({ ok: false, claimed: false, orderMissing: false });
+    expect(r.ok === false && r.reason.endsWith(": order vault holds less than this claim")).toBe(true);
+  });
   it("explains a MinimumIO with quote3's Claimed", async () => {
     const r = await simulateClaim(stub(() => { throw revert(minIO); }, () => { throw revert(errorString("Claimed")); }), args);
     expect(r).toEqual({ ok: false, claimed: true, orderMissing: false, reason: `MinimumIO(0x${"11".repeat(32)}, 0x${"00".repeat(32)}): Claimed` });

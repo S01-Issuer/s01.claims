@@ -50,6 +50,10 @@ export async function isClaimed(client: ReadClient, a: { raindex: Address; order
   return BigInt(value) !== 0n;
 }
 
+/** "0x" + two 32-byte words. */
+const TAKE_RETURN_HEX_LENGTH = 2 + 2 * 64;
+const NO_RAINDEX_REASON = "no contract answered at raindex (wrong address or chain)";
+
 export type ClaimSimulation =
   | { ok: true }
   | { ok: false; reason: string; claimed: boolean; orderMissing: boolean };
@@ -57,16 +61,20 @@ export type ClaimSimulation =
 /**
  * Preflight a claim with `eth_call`, from the wallet that will send it. On a revert, RaindexV7's `takeOrders5` only says
  * `MinimumIO` (it skips an order whose calculate-io reverts), so the same order and context are also quoted with
- * `quote3`, which bubbles the strategy's own reason ("Claimed", "Proof"). Never throws for a revert; RPC errors propagate.
+ * `quote3`, which bubbles the strategy's own reason ("Claimed", "Proof"). A quote that succeeds after that `MinimumIO`
+ * means the order is fine but its vault holds less than the claim. Never throws for a revert; RPC errors propagate.
  */
 export async function simulateClaim(client: ReadClient, a: {
   raindex: Address; wallet: Address; order: OrderV4 | Hex; signedContext: readonly SignedContext[]; amount: Hex;
 }): Promise<ClaimSimulation> {
   const order = toOrder(a.order);
   try {
-    await client.call({ account: a.wallet, to: a.raindex, data: buildTakeOrdersCalldata(order, a.signedContext, a.amount) });
+    const r = await client.call({ account: a.wallet, to: a.raindex, data: buildTakeOrdersCalldata(order, a.signedContext, a.amount) });
+    // takeOrders5 returns two Float words. An address with no code also "succeeds", with no data.
+    if ((r.data?.length ?? 0) < TAKE_RETURN_HEX_LENGTH) return { ok: false, reason: NO_RAINDEX_REASON, claimed: false, orderMissing: false };
     return { ok: true };
   } catch (e) {
+    if (!isRevert(e)) throw e;
     const take = revertReason(e);
     let quote: string | undefined;
     let orderMissing = false;
@@ -74,11 +82,25 @@ export async function simulateClaim(client: ReadClient, a: {
       const r = await client.call({ account: a.wallet, to: a.raindex, data: buildQuoteCalldata(order, a.signedContext) });
       // quote3 answers (false, 0, 0) for an order that is not live.
       if (r.data !== undefined && BigInt(r.data.slice(0, 66)) === 0n) { orderMissing = true; quote = "order is not live (removed or never added)"; }
-    } catch (q) { quote = revertReason(q); }
+      else if (take.startsWith("MinimumIO(")) quote = "order vault holds less than this claim";
+    } catch (q) {
+      if (!isRevert(q)) throw q;
+      quote = revertReason(q);
+    }
     const reason = quote !== undefined ? `${take}: ${quote}` : take;
     return { ok: false, reason, claimed: quote === "Claimed", orderMissing };
   }
 }
+
+/** True for a revert from the node; false for a transport failure, which `simulateClaim` lets propagate. */
+function isRevert(e: unknown): boolean {
+  if (isViemError(e)) {
+    const reverted = e.walk((x) => x instanceof ContractFunctionRevertedError || (x as Error | undefined)?.name === "ContractFunctionRevertedError");
+    return reverted !== null || findRevertData(e) !== undefined || REVERT_TEXT.test(errorText(e));
+  }
+  return e instanceof Error && REVERT_TEXT.test(e.message);
+}
+const REVERT_TEXT = /reverted|custom error 0x/i;
 
 /**
  * A readable revert reason: `Error(string)` text, or `Name(args)` for a RaindexV7 custom error.

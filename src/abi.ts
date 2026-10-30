@@ -36,7 +36,7 @@ export const orderV4Param = {
   ],
 } as const;
 
-/** SignedContextV2: EIP-712 signed, with the signer's chosen domain separator carried alongside (not signed over). */
+/** SignedContextV2: EIP-712 signed, with the signer's chosen domain separator carried alongside (outside the struct hash, but part of the signed digest). */
 export const signedContextV2sParam = {
   type: "tuple[]", name: "signedContext",
   components: [

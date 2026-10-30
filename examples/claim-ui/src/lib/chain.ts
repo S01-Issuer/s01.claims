@@ -39,7 +39,8 @@ export async function injectedWallet(chain: Chain, ours: PublicClient): Promise<
   return createWalletClient({ account, chain, transport: custom(eth) });
 }
 
-export async function assertSameNode(eth: EIP1193Provider, ours: PublicClient): Promise<void> {
+/** Also run right before sending: the user can switch the wallet's network at any time, and chain id 1 will not show it. */
+export async function assertSameNode(eth: Pick<EIP1193Provider, "request">, ours: PublicClient): Promise<void> {
   const theirs = await eth.request({ method: "eth_getBlockByNumber", params: ["latest", false] }) as { number: Hex; hash: Hex } | null;
   if (!theirs) throw new Error("the wallet's node returned no latest block");
   const mine = await ours.getBlock({ blockNumber: BigInt(theirs.number) }).catch(() => null);
@@ -51,14 +52,14 @@ export interface TokenInfo { address: Address; symbol: string; decimals: number 
 const tokens = new Map<string, Promise<TokenInfo>>();
 
 export function tokenInfo(client: PublicClient, address: Address): Promise<TokenInfo> {
-  const key = address.toLowerCase();
+  const key = `${client.chain?.id}:${address.toLowerCase()}`;
   if (!tokens.has(key)) tokens.set(key, (async () => {
     const [symbol, decimals] = await Promise.all([
       client.readContract({ address, abi: erc20Abi, functionName: "symbol" }).catch(() => `${address.slice(0, 8)}…`),
       client.readContract({ address, abi: erc20Abi, functionName: "decimals" }),
     ]);
     return { address, symbol, decimals };
-  })());
+  })().catch((e) => { tokens.delete(key); throw e; }));
   return tokens.get(key)!;
 }
 

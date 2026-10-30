@@ -20,20 +20,33 @@
     if (s && wanted && !choice && s.loaded.config.investors?.some((i) => i.name === wanted)) void pick(wanted);
   });
 
+  // A wallet is bound to the session's chain: a new connection drops it.
+  let pickedOn: Session | null = null;
+  $effect(() => {
+    const s = session();
+    if (pickedOn && s !== pickedOn) { pickedOn = null; picking++; wallet = null; choice = ""; claims = []; balances = []; }
+  });
+
+  let picking = 0;
   async function pick(name: string) {
+    const mine = ++picking;
     choice = name; error = ""; claims = []; balances = [];
     const s = session();
     if (!s || !name) { wallet = null; return; }
+    pickedOn = s;
     try {
-      if (name === "injected") wallet = await injectedWallet(s.chain, s.client);
+      let w: WalletClient;
+      if (name === "injected") w = await injectedWallet(s.chain, s.client);
       else {
         const inv = s.loaded.config.investors?.find((i) => i.name === name);
         if (!inv?.privateKey) throw new Error(`${name} has no private key in the config`);
-        wallet = keyWallet(s.chain, inv.privateKey);
+        w = keyWallet(s.chain, inv.privateKey);
       }
-      claims = await loadWalletClaims(wallet.account!.address, s.loaded);
+      const found = await loadWalletClaims(w.account!.address, s.loaded);
+      if (mine !== picking) return;
+      wallet = w; claims = found;
       claimsAt = Date.now();
-    } catch (e) { wallet = null; error = e instanceof Error ? e.message : String(e); }
+    } catch (e) { if (mine === picking) { wallet = null; error = e instanceof Error ? e.message : String(e); } }
   }
 
   async function readBalances(s: Session, who: Address) {

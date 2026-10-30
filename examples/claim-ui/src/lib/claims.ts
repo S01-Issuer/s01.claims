@@ -10,7 +10,7 @@ import {
   type ClaimSimulation, type LeafHashing, type PreparedClaim,
 } from "@s01/claims";
 import { fetchWalletClaims, parseApiClaim, toClaimProof, type ApiClaim, type FillStatus } from "@s01/claims/api";
-import { balanceOf, tokenInfo, type TokenInfo } from "./chain";
+import { assertSameNode, balanceOf, tokenInfo, type TokenInfo } from "./chain";
 import type { Loaded } from "./config";
 
 /** One claim the wallet holds: the API's `claim` object, plus what we know about its order. */
@@ -39,7 +39,9 @@ export async function loadWalletClaims(wallet: Address, loaded: Loaded): Promise
   if (loaded.config.apiUrl) {
     // GET /v1/wallets/{wallet}/purchases and /redemptions, validated; only fills that have a claim.
     const fills = await fetchWalletClaims(wallet, { baseUrl: loaded.config.apiUrl, fetch: apiFetch });
-    return fills.map((f) => {
+    // A wallet with several fills in one flush has one leaf, so the API repeats the claim on each fill.
+    const leaves = new Map(fills.map((f) => [`${f.claim.order}:${f.claim.index}`, f]));
+    return [...leaves.values()].map((f) => {
       const root = roots.get(orderHash(f.claim.order).toLowerCase());
       return { flush: f.flush, label: `${f.kind} → ${f.token}`, claim: f.claim, apiStatus: f.status, ...(root ? { root } : {}) };
     });
@@ -99,6 +101,7 @@ export async function sendClaim(client: PublicClient, wallet: WalletClient, s: C
   const pre = await simulateClaim(client, { raindex, wallet: account.address, order: p.order, signedContext: p.signedContext, amount: p.amount });
   if (!pre.ok) return { sent: false, reason: pre.reason, claimed: pre.claimed };
 
+  await assertSameNode(wallet, client);
   const before = await balanceOf(client, s.token.address, account.address);
   const hash = await wallet.sendTransaction({ account, chain: wallet.chain, to: p.to, data: p.data });
   const receipt = await client.waitForTransactionReceipt({ hash });
