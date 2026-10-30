@@ -1,0 +1,9 @@
+node_modules/
+out/
+dist/
+.env
+.forge-out/
+.forge-cache/
+coverage/
+*.log
+.s01-dist/
