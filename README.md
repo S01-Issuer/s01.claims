@@ -45,6 +45,9 @@ Rules a UI must keep:
 - **The amount word is 18-decimal** whatever the token: `F(amount·10^(18−d), 18)`. `buildClaimContext` does this.
 - **Any key can sign the context.** The order checks neither signer nor EIP-712 domain; `prepareClaim` uses a fresh
   random key unless you pass `signer`.
+- **`simulateClaim` is the proof check.** It runs the proof against the order's on-chain root, so a wrong proof comes
+  back as `pre.ok === false` with a reason ending in `: Proof` (`MinimumIO(…): Proof`), and the example stops there. The tSALT API does not serve the root, so
+  use `prepareClaim`'s `verify` option only if you hold the root from another source.
 - **The claimant pays nothing.** The order's IO ratio is 0 and the take sets `maximumIORatio` to 0, so no approval is
   needed.
 
