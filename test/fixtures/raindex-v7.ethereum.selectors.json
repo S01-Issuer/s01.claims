@@ -1,0 +1,23 @@
+{
+ "address": "0x91b95120D085Aa99C05167f3767eB63460c1dCaC",
+ "chainId": 1,
+ "codehash": "0x68d6223023b2516f30acb5b6d4973cbaf5054e9d6156d27c51180939ba233cf5",
+ "source": "cast selectors $(cast code 0x91b9... --rpc-url https://ethereum-rpc.publicnode.com), 2026-10-29",
+ "selectors": [
+  "0x01ffc9a7",
+  "0x2cb77e9f",
+  "0x41d1514f",
+  "0x5343c1b7",
+  "0x5cffe9de",
+  "0x5d003c44",
+  "0x613255ab",
+  "0x687cf02a",
+  "0xac9650d8",
+  "0xb0460f07",
+  "0xb845b83e",
+  "0xca9109ba",
+  "0xd9d98ce4",
+  "0xddebc96f",
+  "0xdf6db3c2"
+ ]
+}
