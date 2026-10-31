@@ -3,7 +3,7 @@
 import { describe, it, expect } from "vitest";
 import { BaseError, CallExecutionError, HttpRequestError, concat, encodeAbiParameters, encodeErrorResult, encodeFunctionResult, keccak256, pad, RawContractError, type Hex } from "viem";
 import {
-  CLAIMED_KEY_WORD, claimedStoreKey, isClaimed, orderHash, orderNamespace, raindexV7ClaimAbi, revertReason, simulateClaim, type ReadClient,
+  CLAIMED_KEY_WORD, ZERO_FLOAT, claimedStoreKey, floatHex, floatLessThan, isClaimed, packFloat, orderHash, orderNamespace, raindexV7ClaimAbi, revertReason, simulateClaim, type ReadClient,
 } from "../../src/index.js";
 import { ORDER } from "./helpers.js";
 
@@ -58,11 +58,30 @@ describe("simulateClaim", () => {
     await expect(simulateClaim(stub(down, () => "0x"), args)).rejects.toBeInstanceOf(HttpRequestError);
     await expect(simulateClaim(stub(() => { throw revert(minIO); }, down), args)).rejects.toBeInstanceOf(HttpRequestError);
   });
-  it("names an underfunded vault: MinimumIO, and the quote says the order is live", async () => {
-    const live = encodeFunctionResult({ abi: raindexV7ClaimAbi, functionName: "quote3", result: [true, `0x${"00".repeat(32)}`, `0x${"00".repeat(32)}`] });
-    const r = await simulateClaim(stub(() => { throw revert(minIO); }, () => live), args);
-    expect(r).toMatchObject({ ok: false, claimed: false, orderMissing: false });
-    expect(r.ok === false && r.reason.endsWith(": order vault holds less than this claim")).toBe(true);
+  describe("a take that reverts MinimumIO while the quote answers", () => {
+    const quoted = (outputMax: Hex, ioRatio: Hex) => encodeFunctionResult({ abi: raindexV7ClaimAbi, functionName: "quote3", result: [true, outputMax, ioRatio] });
+    const run = (outputMax: Hex, ioRatio: Hex = ZERO_FLOAT) =>
+      simulateClaim(stub(() => { throw revert(minIO); }, () => quoted(outputMax, ioRatio)), { ...args, amount: floatHex(5n * 10n ** 18n, 18) });
+    it("names a vault short of the claim, whatever the encoding", async () => {
+      const r = await run(floatHex(4n, 0));
+      expect(r).toMatchObject({ ok: false, claimed: false, orderMissing: false });
+      expect(r.ok === false && r.reason.endsWith(": order vault holds less than this claim")).toBe(true);
+    });
+    it("does not blame a vault that covers the claim", async () => {
+      const r = await run(floatHex(5n, 0));
+      expect(r.ok === false && !r.reason.includes("vault") && /^MinimumIO\(.*\)$/.test(r.reason)).toBe(true);
+    });
+    it("names a ratio above the take's 0", async () => {
+      const r = await run(floatHex(5n, 0), floatHex(1n, 0));
+      expect(r.ok === false && r.reason.endsWith(": order's IO ratio is above 0")).toBe(true);
+    });
+  });
+  it("floatLessThan compares values, not encodings, and survives far-apart exponents", () => {
+    expect(floatLessThan(floatHex(4n, 0), floatHex(5n * 10n ** 18n, 18))).toBe(true);
+    expect(floatLessThan(floatHex(5n, 0), floatHex(5n * 10n ** 18n, 18))).toBe(false);
+    expect(floatLessThan(ZERO_FLOAT, floatHex(1n, 0))).toBe(true);
+    expect(floatLessThan(packFloat(1n, 2_000_000_000), floatHex(1n, 0))).toBe(false);
+    expect(floatLessThan(floatHex(1n, 0), packFloat(1n, 2_000_000_000))).toBe(true);
   });
   it("explains a MinimumIO with quote3's Claimed", async () => {
     const r = await simulateClaim(stub(() => { throw revert(minIO); }, () => { throw revert(errorString("Claimed")); }), args);

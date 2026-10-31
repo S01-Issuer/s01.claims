@@ -30,9 +30,9 @@
   let picking = 0;
   async function pick(name: string) {
     const mine = ++picking;
-    choice = name; error = ""; claims = []; balances = [];
+    choice = name; error = ""; claims = []; balances = []; wallet = null;
     const s = session();
-    if (!s || !name) { wallet = null; return; }
+    if (!s || !name) return;
     pickedOn = s;
     try {
       let w: WalletClient;
@@ -50,6 +50,7 @@
   }
 
   async function readBalances(s: Session, who: Address) {
+    const mine = picking;
     const c = s.loaded.config.contracts ?? {};
     const out = [{ label: "ETH", value: amount(await s.client.getBalance({ address: who }), 18) }];
     for (const t of [c.tSALT, c.usdc]) {
@@ -57,7 +58,7 @@
       try { const i = await tokenInfo(s.client, t); out.push({ label: i.symbol, value: amount(await balanceOf(s.client, t, who), i.decimals) }); }
       catch { /* token not on this chain */ }
     }
-    balances = out;
+    if (mine === picking) balances = out;
   }
 
   // The API's status lags the chain (confirmations + indexer): re-read the wallet's claims at most every 10 s.
@@ -65,8 +66,9 @@
   async function reloadClaims(s: Session, who: Address) {
     if (!s.loaded.config.apiUrl || Date.now() - claimsAt < 10_000) return;
     claimsAt = Date.now();
+    const mine = picking;
     const fresh = await loadWalletClaims(who, s.loaded);
-    if (address === who) claims = fresh;
+    if (mine === picking) claims = fresh;
   }
 
   $effect(() => {
