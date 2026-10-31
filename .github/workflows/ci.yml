@@ -11,3 +11,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm ci --ignore-scripts
+        working-directory: examples/claim-ui
+      - run: npx svelte-check --tsconfig ./tsconfig.json && npx tsc -p tsconfig.node.json && npx vite build
+        working-directory: examples/claim-ui

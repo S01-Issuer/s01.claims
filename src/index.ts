@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright (c) 2026 S01 Issuer GmbH
 export { ClaimsError, type ClaimsErrorCode } from "./errors.js";
 export { assertDecimals, formatAmount, parseAmount, toLeafAmount18 } from "./amounts.js";
-export { floatHex, floatToFixed, packFloat, unpackFloat, ZERO_FLOAT, type Float } from "./float.js";
+export { floatHex, floatLessThan, floatToFixed, packFloat, unpackFloat, ZERO_FLOAT, type Float } from "./float.js";
 export {
   buildLeaf, buildLeafRaw, hashPair, isWord, MAX_LEAVES, processProof, TREE_DEPTH, treeLeaf, verifyProof, type LeafHashing, type LeafInput,
 } from "./leaf.js";

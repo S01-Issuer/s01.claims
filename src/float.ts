@@ -60,3 +60,13 @@ export function floatToFixed(float: Hex, decimals: number): bigint {
 
 /** The zero Float (also F(0, d) for every d). */
 export const ZERO_FLOAT: Float = `0x${"0".repeat(64)}`;
+
+/** a < b for non-negative Floats, by value: the same value has many encodings, so the words cannot be compared. */
+export function floatLessThan(a: Hex, b: Hex): boolean {
+  const x = unpackFloat(a), y = unpackFloat(b);
+  if (x.coefficient === 0n || y.coefficient === 0n) return x.coefficient < y.coefficient;
+  const gap = x.exponent - y.exponent;
+  // A coefficient is under 10^68, so past this gap the exponents decide, and the power of ten need not be built.
+  if (Math.abs(gap) > 68) return gap < 0;
+  return gap >= 0 ? x.coefficient * 10n ** BigInt(gap) < y.coefficient : x.coefficient < y.coefficient * 10n ** BigInt(-gap);
+}

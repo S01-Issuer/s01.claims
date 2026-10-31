@@ -10,15 +10,17 @@
   let sending = $state(false);
   let result = $state.raw<SendResult | null>(null);
 
-  // Re-check on every block: proof (local), isClaimed and the preflight (both eth_call).
+  // Re-check on every block: proof (local), isClaimed and the preflight (both eth_call). A run may not overwrite a newer one's answer.
+  let run = 0, applied = 0;
   $effect(() => {
     const s = session();
     const who = wallet?.account?.address;
     void app.block;
     if (!s || !who) return;
+    const mine = ++run;
     checkClaim(s.client, { raindex: s.raindex, hashing: s.hashing, wallet: who, wc })
-      .then((x) => { cs = x; error = ""; })
-      .catch((e) => { error = e instanceof Error ? e.message : String(e); });
+      .then((x) => { if (mine > applied) { applied = mine; cs = x; error = ""; } })
+      .catch((e) => { if (mine > applied) { applied = mine; error = e instanceof Error ? e.message : String(e); } });
   });
 
   /** simulateClaim's reason is "<takeOrders5 revert>: <quote3 reason>"; the last part is the strategy's own word. */

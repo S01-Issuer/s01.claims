@@ -5,6 +5,7 @@ import {
   type Address, type Hex, type PublicClient,
 } from "viem";
 import { interpreterStoreV3Abi, raindexV7ClaimAbi } from "./abi.js";
+import { floatLessThan, unpackFloat } from "./float.js";
 import { orderHash, toOrder, type OrderV4 } from "./order.js";
 import type { SignedContext } from "./context.js";
 import { buildQuoteCalldata, buildTakeOrdersCalldata } from "./take.js";
@@ -50,6 +51,10 @@ export async function isClaimed(client: ReadClient, a: { raindex: Address; order
   return BigInt(value) !== 0n;
 }
 
+/** "0x" + two 32-byte words. */
+const TAKE_RETURN_HEX_LENGTH = 2 + 2 * 64;
+const NO_RAINDEX_REASON = "no contract answered at raindex (wrong address or chain)";
+
 export type ClaimSimulation =
   | { ok: true }
   | { ok: false; reason: string; claimed: boolean; orderMissing: boolean };
@@ -57,27 +62,54 @@ export type ClaimSimulation =
 /**
  * Preflight a claim with `eth_call`, from the wallet that will send it. On a revert, RaindexV7's `takeOrders5` only says
  * `MinimumIO` (it skips an order whose calculate-io reverts), so the same order and context are also quoted with
- * `quote3`, which bubbles the strategy's own reason ("Claimed", "Proof"). Never throws for a revert; RPC errors propagate.
+ * `quote3`, which bubbles the strategy's own reason ("Claimed", "Proof"). When the quote answers instead, its output
+ * max and ratio say whether the vault is short of the claim or the ratio is above the take's 0. Never throws for a
+ * revert; RPC errors propagate.
  */
 export async function simulateClaim(client: ReadClient, a: {
   raindex: Address; wallet: Address; order: OrderV4 | Hex; signedContext: readonly SignedContext[]; amount: Hex;
 }): Promise<ClaimSimulation> {
   const order = toOrder(a.order);
   try {
-    await client.call({ account: a.wallet, to: a.raindex, data: buildTakeOrdersCalldata(order, a.signedContext, a.amount) });
+    const r = await client.call({ account: a.wallet, to: a.raindex, data: buildTakeOrdersCalldata(order, a.signedContext, a.amount) });
+    // takeOrders5 returns two Float words. An address with no code also "succeeds", with no data.
+    if ((r.data?.length ?? 0) < TAKE_RETURN_HEX_LENGTH) return { ok: false, reason: NO_RAINDEX_REASON, claimed: false, orderMissing: false };
     return { ok: true };
   } catch (e) {
+    if (!isRevert(e)) throw e;
     const take = revertReason(e);
     let quote: string | undefined;
     let orderMissing = false;
     try {
       const r = await client.call({ account: a.wallet, to: a.raindex, data: buildQuoteCalldata(order, a.signedContext) });
+      const answer = quoteAnswer(r.data);
       // quote3 answers (false, 0, 0) for an order that is not live.
-      if (r.data !== undefined && BigInt(r.data.slice(0, 66)) === 0n) { orderMissing = true; quote = "order is not live (removed or never added)"; }
-    } catch (q) { quote = revertReason(q); }
+      if (answer?.exists === false) { orderMissing = true; quote = "order is not live (removed or never added)"; }
+      else if (answer && take.startsWith("MinimumIO(")) {
+        if (unpackFloat(answer.ioRatio).coefficient > 0n) quote = "order's IO ratio is above 0";
+        else if (floatLessThan(answer.outputMax, a.amount)) quote = "order vault holds less than this claim";
+      }
+    } catch (q) {
+      if (!isRevert(q)) throw q;
+      quote = revertReason(q);
+    }
     const reason = quote !== undefined ? `${take}: ${quote}` : take;
     return { ok: false, reason, claimed: quote === "Claimed", orderMissing };
   }
+}
+
+/** quote3's three words, or undefined for an answer of any other size. */
+function quoteAnswer(data: Hex | undefined): { exists: boolean; outputMax: Hex; ioRatio: Hex } | undefined {
+  if (data?.length !== 2 + 3 * 64) return undefined;
+  const word = (i: number) => `0x${data.slice(2 + i * 64, 2 + (i + 1) * 64)}` as Hex;
+  return { exists: BigInt(word(0)) !== 0n, outputMax: word(1), ioRatio: word(2) };
+}
+
+const REVERT_TEXT = /reverted|custom error 0x/i;
+
+/** True for a revert from the node; false for a transport failure, which `simulateClaim` lets propagate. */
+function isRevert(e: unknown): boolean {
+  return revertedReason(e) !== undefined;
 }
 
 /**
@@ -87,17 +119,23 @@ export async function simulateClaim(client: ReadClient, a: {
  * this library's (a linked or duplicated dependency), and an `instanceof` check would then miss every reason.
  */
 export function revertReason(e: unknown): string {
+  return revertedReason(e) ?? (isViemError(e) ? e.shortMessage : e instanceof Error ? e.message : String(e));
+}
+
+/** The reason when `e` is a revert, undefined when it is anything else. The one definition of what a revert is. */
+function revertedReason(e: unknown): string | undefined {
   if (isViemError(e)) {
     const reverted = e.walk((x) => x instanceof ContractFunctionRevertedError || (x as Error | undefined)?.name === "ContractFunctionRevertedError");
     const reason = (reverted as { reason?: unknown } | null)?.reason;
     if (typeof reason === "string" && reason) return reason;
-    const data = findRevertData(e) ?? revertDataFromText(errorText(e));
+    const text = errorText(e);
+    const data = findRevertData(e) ?? revertDataFromText(text);
     if (data !== undefined) return decodeRevertData(data);
     // No data anywhere (some nodes and proxies only send text): the node's own words, e.g. "execution reverted: Claimed".
-    return reasonFromText(errorText(e)) ?? e.shortMessage;
+    return reasonFromText(text) ?? (reverted !== null || REVERT_TEXT.test(text) ? e.shortMessage : undefined);
   }
-  if (e instanceof Error) return reasonFromText(e.message) ?? e.message;
-  return String(e);
+  if (e instanceof Error) return reasonFromText(e.message) ?? (REVERT_TEXT.test(e.message) ? e.message : undefined);
+  return undefined;
 }
 
 /** `Error(string)` text, `Name(args)` for a RaindexV7 custom error, else `revert 0x…`. */
