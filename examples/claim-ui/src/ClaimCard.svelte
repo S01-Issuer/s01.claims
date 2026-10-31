@@ -6,7 +6,8 @@
 
   let { wc, wallet }: { wc: WalletClaim; wallet: WalletClient | null } = $props();
   let cs = $state.raw<ClaimState | null>(null);
-  let error = $state("");
+  let checkError = $state("");
+  let sendError = $state("");
   let sending = $state(false);
   let result = $state.raw<SendResult | null>(null);
 
@@ -19,8 +20,8 @@
     if (!s || !who) return;
     const mine = ++run;
     checkClaim(s.client, { raindex: s.raindex, hashing: s.hashing, wallet: who, wc })
-      .then((x) => { if (mine > applied) { applied = mine; cs = x; error = ""; } })
-      .catch((e) => { if (mine > applied) { applied = mine; error = e instanceof Error ? e.message : String(e); } });
+      .then((x) => { if (mine > applied) { applied = mine; cs = x; checkError = ""; } })
+      .catch((e) => { if (mine > applied) { applied = mine; checkError = e instanceof Error ? e.message : String(e); } });
   });
 
   /** simulateClaim's reason is "<takeOrders5 revert>: <quote3 reason>"; the last part is the strategy's own word. */
@@ -29,9 +30,9 @@
   async function claim() {
     const s = session();
     if (!s || !wallet || !cs) return;
-    sending = true; error = ""; result = null;
+    sending = true; sendError = ""; result = null;
     try { result = await sendClaim(s.client, wallet, cs, s.raindex); }
-    catch (e) { error = e instanceof Error ? e.message.split("\n")[0]! : String(e); }
+    catch (e) { sendError = e instanceof Error ? e.message.split("\n")[0]! : String(e); }
     finally { sending = false; }
   }
 </script>
@@ -78,7 +79,7 @@
   {:else if result}
     <div class="result bad-box" role="alert">Not sent: the preflight reverts with <strong>{why(result.reason)}</strong>{result.claimed ? " (this leaf is already claimed)" : ""}</div>
   {/if}
-  {#if error}<p class="error">{error}</p>{/if}
+  {#if checkError || sendError}<p class="error">{sendError || checkError}</p>{/if}
 </article>
 
 <style>

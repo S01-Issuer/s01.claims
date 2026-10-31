@@ -76,8 +76,8 @@ export async function simulateClaim(client: ReadClient, a: {
     if ((r.data?.length ?? 0) < TAKE_RETURN_HEX_LENGTH) return { ok: false, reason: NO_RAINDEX_REASON, claimed: false, orderMissing: false };
     return { ok: true };
   } catch (e) {
-    if (!isRevert(e)) throw e;
-    const take = revertReason(e);
+    const take = revertedReason(e);
+    if (take === undefined) throw e;
     let quote: string | undefined;
     let orderMissing = false;
     try {
@@ -90,8 +90,8 @@ export async function simulateClaim(client: ReadClient, a: {
         else if (floatLessThan(answer.outputMax, a.amount)) quote = "order vault holds less than this claim";
       }
     } catch (q) {
-      if (!isRevert(q)) throw q;
-      quote = revertReason(q);
+      quote = revertedReason(q);
+      if (quote === undefined) throw q;
     }
     const reason = quote !== undefined ? `${take}: ${quote}` : take;
     return { ok: false, reason, claimed: quote === "Claimed", orderMissing };
@@ -107,11 +107,6 @@ function quoteAnswer(data: Hex | undefined): { exists: boolean; outputMax: Hex; 
 
 const REVERT_TEXT = /reverted|custom error 0x/i;
 
-/** True for a revert from the node; false for a transport failure, which `simulateClaim` lets propagate. */
-function isRevert(e: unknown): boolean {
-  return revertedReason(e) !== undefined;
-}
-
 /**
  * A readable revert reason: `Error(string)` text, or `Name(args)` for a RaindexV7 custom error.
  *
@@ -122,7 +117,7 @@ export function revertReason(e: unknown): string {
   return revertedReason(e) ?? (isViemError(e) ? e.shortMessage : e instanceof Error ? e.message : String(e));
 }
 
-/** The reason when `e` is a revert, undefined when it is anything else. The one definition of what a revert is. */
+/** The reason when `e` is a revert; undefined for anything else, such as the transport failures `simulateClaim` lets propagate. */
 function revertedReason(e: unknown): string | undefined {
   if (isViemError(e)) {
     const reverted = e.walk((x) => x instanceof ContractFunctionRevertedError || (x as Error | undefined)?.name === "ContractFunctionRevertedError");
