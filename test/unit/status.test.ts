@@ -71,6 +71,11 @@ describe("simulateClaim", () => {
       const r = await run(floatHex(5n, 0));
       expect(r.ok === false && !r.reason.includes("vault") && /^MinimumIO\(.*\)$/.test(r.reason)).toBe(true);
     });
+    it.each([["no data", undefined], ["empty data", "0x"], ["two words", `0x${"00".repeat(64)}`]])("reports the take alone for a quote with %s", async (_, data) => {
+      const r = await simulateClaim(stub(() => { throw revert(minIO); }, () => data as Hex), args);
+      expect(r).toMatchObject({ ok: false, claimed: false, orderMissing: false });
+      expect(r.ok === false && /^MinimumIO\(0x[^:]*\)$/.test(r.reason)).toBe(true);
+    });
     it("names a ratio above the take's 0", async () => {
       const r = await run(floatHex(5n, 0), floatHex(1n, 0));
       expect(r.ok === false && r.reason.endsWith(": order's IO ratio is above 0")).toBe(true);
@@ -82,6 +87,12 @@ describe("simulateClaim", () => {
     expect(floatLessThan(ZERO_FLOAT, floatHex(1n, 0))).toBe(true);
     expect(floatLessThan(packFloat(1n, 2_000_000_000), floatHex(1n, 0))).toBe(false);
     expect(floatLessThan(floatHex(1n, 0), packFloat(1n, 2_000_000_000))).toBe(true);
+    expect(floatLessThan(packFloat(0n, 2_000_000_000), floatHex(1n, 0))).toBe(true);
+    expect(floatLessThan(floatHex(1n, 0), packFloat(0n, 2_000_000_000))).toBe(false);
+  });
+  it("floatLessThan refuses a negative Float", () => {
+    expect(() => floatLessThan(packFloat(-1n, 100), floatHex(1n, 0))).toThrow(/negative Float/);
+    expect(() => floatLessThan(floatHex(1n, 0), packFloat(-1n, 0))).toThrow(/negative Float/);
   });
   it("explains a MinimumIO with quote3's Claimed", async () => {
     const r = await simulateClaim(stub(() => { throw revert(minIO); }, () => { throw revert(errorString("Claimed")); }), args);
